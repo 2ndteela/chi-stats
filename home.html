@@ -1,0 +1,221 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <link href="https://fonts.googleapis.com/css?family=Open+Sans|Space+Mono&display=swap" rel="stylesheet">
+        <style>
+            body {
+                margin: 0;
+                padding: 0;
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                font-family: 'Open Sans';
+            }
+
+            h1, h2, h3, h4 { font-family: 'Space Mono'; }
+
+            #index {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+                width: 100%;
+            }
+
+            #index div {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+            }
+
+            #index span {
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: flex-start;
+            }
+
+            #page-header {
+                width: 100%;
+                background-color: #333;
+                color: white;
+                align-items: flex-start !important;
+                padding-left: 24px;
+            }
+
+            #body-content {
+                width: 1200px;
+                min-height: 50vh;
+            }
+
+            #table {
+                width: 1200px;
+            }
+
+            th {
+                text-align: left;
+                transition: .2s;
+            }
+
+            th:hover {
+                cursor: pointer;
+                text-shadow: 2px 2px 4px #aaa;
+            }
+
+            tr {
+                width: 1200px;
+                transition: .2s;
+            }
+
+            tr:hover {
+                background-color: #eee;
+            }
+
+            .selected-header {
+                color: blue !important;
+            }
+            td {
+                border: none;
+            }
+
+            .renderd {
+                box-shadow: 2px 2px 8px #aaa;
+                padding: 16px;
+                border-radius: 4px;
+                border: none;
+            }
+
+            .no-hover {
+                background-color: white !important;
+            }
+
+        </style>
+    </head>
+    <body>
+        <div id="index">
+            <div id="page-header">
+                <h2>Stats</h2>
+            </div>
+            <div id="body-content">
+                <span style="align-items: flex-end; width: 100%; padding-top: 16px;" >
+                    <input type="file" id="uploader" >
+                </span>
+                <br>
+                <h1 id="no-data" >No Data</h1>
+                <table id="table"></table>
+            </div>
+        </div>
+    </body>
+    <script>
+        const interestedCols = ['Player', 'Points played total', 'Touches', 'Throws', 'Catches', 'Assists', 'Secondary assists',
+                                'Goals', 'Turnovers', 'Thrower errors', 'Reciver errors', 'Defensive blocks']
+        const uploader = document.querySelector('#uploader')
+
+        const sortBy = idx => {
+
+            const players = JSON.parse(localStorage['players'])
+            const headers = JSON.parse(localStorage['headers'])
+            const indecies = JSON.parse(localStorage['indecies'])
+            const heads = document.querySelectorAll('th')
+
+            players.sort((a, b) => {
+                return b.data[idx] - a.data[idx] 
+            })
+
+            localStorage['players'] = JSON.stringify(players)
+
+            loadInData()
+
+            let domIdx = 0
+
+            indecies.forEach((index, itr) => {  
+                if(index === idx) domIdx = itr
+            })
+
+            heads[domIdx].classList.add('selected-header')
+        }
+
+
+        const loadInData = () => {
+            const headers = JSON.parse(localStorage['headers'])
+            const players = JSON.parse(localStorage['players'])
+            const table = document.getElementById('table')
+
+            table.innerHTML = ''
+
+            const heads = document.createElement('tr') 
+            const indecies = []
+             
+            headers.forEach((h, itr) => {
+
+                if(interestedCols.indexOf(h) !== -1) {
+                    const newHead = document.createElement('th')
+                    newHead.innerText = h
+
+                    newHead.addEventListener('click', () => sortBy(itr))
+
+                    heads.appendChild(newHead)
+                    indecies.push(itr)
+                }
+            })
+
+            heads.classList.add('no-hover')
+            table.appendChild(heads)
+
+            players.forEach(p => {
+                const newRow = document.createElement('tr')
+                indecies.forEach(i => {
+                    const newItem = document.createElement('td')
+                    newItem.innerHTML = p.data[i]
+
+                    newRow.appendChild(newItem)
+                })
+                table.appendChild(newRow)
+            })
+
+            table.classList.add('renderd')
+
+            localStorage['indecies'] = JSON.stringify(indecies)
+        }
+
+        const uploadFile = () => {
+
+            fetch('/upload', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'text/scv'  
+                },
+                body: uploader.files[0]
+            }).then( b => b.text())
+            .then(data => {
+                const split = data.split('\n')
+                const headers = split[0].split(',')
+                const count = headers.length
+                const players = []
+
+                for(let i = 1; i < split.length; i++) {
+                    const player = {}
+                    const playerData = split[i].split(',')
+
+                    player.name = playerData[0]
+                    player.data = playerData
+
+                    players.push(player)
+                }
+
+                document.getElementById('no-data').style.display = 'none'
+
+                localStorage['headers'] = JSON.stringify(headers)
+                localStorage['players'] = JSON.stringify(players)
+
+                loadInData()
+            })
+        }
+
+        window.onload = () => {
+            uploader.addEventListener('change', uploadFile, false)
+        }
+    </script>
+</html>
